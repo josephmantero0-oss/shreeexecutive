@@ -1,0 +1,19 @@
+{
+  "name": "hotel-shree-executive",
+  "version": "1.0.0",
+  "description": "Hotel Shree Executive - Luxury Digital Guest Portal & In-Room Service System",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve public",
+    "dev": "npx serve public"
+  },
+  "keywords": [
+    "hotel",
+    "guest-portal",
+    "room-service",
+    "supabase",
+    "vercel"
+  ],
+  "author": "Hotel Shree Executive",
+  "license": "MIT"
+}
