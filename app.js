@@ -242,7 +242,7 @@ function guest(){
  const nt=S.notices.slice().reverse().map(n=>`<div class="card note rv"><b>From reception</b><p style="margin:6px 0 4px">${esc(n.t)}</p><small>${esc(n.time)}</small></div>`).join('');
  return `<div class="adm">${isRoomLocked ? `<span class="top-room-badge"><i class="top-r-dot"></i>ROOM ${esc(ord.room||lockedRoom)}</span>` : `<button data-act="login">Admin</button>`}</div><div class="wrap">
  <header class="hero" id="hero">
-  ${ord.room ? `<div class="room-pill"><span class="r-dot"></span><b>ROOM ${esc(ord.room)}</b><span class="r-vtag">✓ Verified Link</span></div>` : ''}<div class="scene" data-act="owl"><div class="float"><div class="keycard" id="kc"><div class="face front"><span class="sheen"></span><b class="fanc"></b><div class="mono">${esc(ini)}</div><svg class="nfc" viewBox="0 0 24 24"><path d="M6 8a6 6 0 010 8M10 5.5a10 10 0 010 13M14 3a14 14 0 010 18"/></svg><div class="cn">${esc(S.hotel.name.toUpperCase())}</div><small>GUEST ACCESS CARD</small></div><div class="face back"><div class="rings"><i></i><i></i><i></i></div><div><div class="wb">Welcome</div><small>${esc(S.hotel.tagline)}</small></div></div></div></div></div>
+  <div class="scene" data-act="owl"><div class="float"><div class="keycard" id="kc"><div class="face front"><span class="sheen"></span><b class="fanc"></b><div class="mono">${esc(ini)}</div><svg class="nfc" viewBox="0 0 24 24"><path d="M6 8a6 6 0 010 8M10 5.5a10 10 0 010 13M14 3a14 14 0 010 18"/></svg><div class="cn">${esc(S.hotel.name.toUpperCase())}</div><small>GUEST ACCESS CARD</small></div><div class="face back"><div class="rings"><i></i><i></i><i></i></div><div><div class="wb">Welcome</div><small>${esc(S.hotel.tagline)}</small></div></div></div></div></div>
  <p class="hint" data-act="owl">Tap the card 💳</p><p class="eyebrow">${esc(H[0])}</p><h1>${esc(S.hotel.name)}</h1><p class="sub">${esc(S.hotel.tagline)}</p><p class="say" id="say" data-act="owl">${esc(H[1])}</p></header>
  <div class="div"><i></i><b class="fan"></b><i></i></div>
  ${nt}
@@ -757,7 +757,7 @@ let fp = { open: false, cat: 0, q: '', veg: false, view: 'menu', sent: '' };
 try {
   const g = JSON.parse(localStorage.getItem('se_guest') || '{}');
   if (g.name) ord.name = g.name;
-  if (!isRoomLocked && g.room) ord.room = g.room;
+  
 } catch (e) {}
 if (isRoomLocked) {
   ord.room = lockedRoom;
@@ -823,7 +823,7 @@ function afterQty(k,t){if(k[0]==='f'){if(fp.view==='checkout')return paintFood()
 function validate(tab){if(isRoomLocked){ord.room=lockedRoom;}if(ord.name.trim().length<2)return 'Please enter your name.';if(!ord.room.trim())return 'Please enter your room number.';if(tab==='msg'){if(!ord.msg.trim())return 'Please write your message.'}else if(!cnt(tab))return 'Add at least one item.';return ''}
 
 function sendOrder(kind,tab){ord.err=validate(tab);const e=$(tab==='food'?'#ferr':'#oerr');if(e)e.textContent=ord.err;if(ord.err)return;
- try{localStorage.setItem('se_guest',JSON.stringify({name:ord.name.trim(),room:ord.room.trim()}))}catch(x){}
+ try{localStorage.setItem('se_guest',JSON.stringify({name:ord.name.trim()}))}catch(x){}
  if(kind==='copy'){const m=buildMsg(false,tab);(navigator.clipboard?navigator.clipboard.writeText(m):Promise.reject()).then(()=>toast('Order copied')).catch(()=>toast('Copy not available'));return}
  // Background push to Kitchen & Staff Dashboard in Supabase
  if(SB && kind !== 'copy'){
