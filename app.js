@@ -1,3 +1,7 @@
+// Locked per-room URL detection
+const urlParams = new URLSearchParams(window.location.search);
+const lockedRoom = (urlParams.get('room') || urlParams.get('r') || '').trim();
+const isRoomLocked = Boolean(lockedRoom);
 let S=null;
 function normalize(){
  S.hotel=S.hotel||{name:'Hotel Shree Executive',tagline:'An Executive Stay',phone:'+91 9876543210',ai_info:'Welcome to Hotel Shree Executive. Premium executive hospitality, banquet facilities, and 24/7 room service.'};
@@ -16,10 +20,6 @@ function normalize(){
 const $=s=>document.querySelector(s),esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,8);
 const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
-// URL Room detection & persistent room locking
-const urlParams = new URLSearchParams(window.location.search);
-const lockedRoom = (urlParams.get('room') || urlParams.get('r') || '').trim();
-let isRoomLocked = false;
 let adminTab = 'kitchen', kitchenFilter = 'active', liveOrders = [], soundEnabled = true, lastKnownOrderIds = new Set();
 
 function playChime(){
@@ -36,7 +36,7 @@ function playChime(){
   }catch(e){}
 }
 let admin=false,login=false,tab='notices',mcat=0,ci=0,q='',vegOnly=false,delArm=-1;
-try{admin=sessionStorage.getItem('se_admin')==='1'}catch(e){}
+try{admin=(!isRoomLocked && sessionStorage.getItem('se_admin')==='1')}catch(e){}
 
 const IC={
   wifi:'<path d="M2 9a15 15 0 0120 0M5.5 12.5a10 10 0 0113 0M9 16a5 5 0 016 0"/><circle cx="12" cy="19" r="1"/>',
@@ -240,7 +240,7 @@ function pick(t){
 function guest(){
  const ph=String(S.hotel.phone).replace(/[^+\d]/g,''),rv=url(S.review),H=hi(),ini='SE';
  const nt=S.notices.slice().reverse().map(n=>`<div class="card note rv"><b>From reception</b><p style="margin:6px 0 4px">${esc(n.t)}</p><small>${esc(n.time)}</small></div>`).join('');
- return `<div class="adm"><button data-act="login">Admin</button></div><div class="wrap">
+ return `<div class="adm">${isRoomLocked ? `<span class="top-room-badge"><i class="top-r-dot"></i>ROOM ${esc(ord.room||lockedRoom)}</span>` : `<button data-act="login">Admin</button>`}</div><div class="wrap">
  <header class="hero" id="hero">
   ${ord.room ? `<div class="room-pill"><span class="r-dot"></span><b>ROOM ${esc(ord.room)}</b><span class="r-vtag">✓ Verified Link</span></div>` : ''}<div class="scene" data-act="owl"><div class="float"><div class="keycard" id="kc"><div class="face front"><span class="sheen"></span><b class="fanc"></b><div class="mono">${esc(ini)}</div><svg class="nfc" viewBox="0 0 24 24"><path d="M6 8a6 6 0 010 8M10 5.5a10 10 0 010 13M14 3a14 14 0 010 18"/></svg><div class="cn">${esc(S.hotel.name.toUpperCase())}</div><small>GUEST ACCESS CARD</small></div><div class="face back"><div class="rings"><i></i><i></i><i></i></div><div><div class="wb">Welcome</div><small>${esc(S.hotel.tagline)}</small></div></div></div></div></div>
  <p class="hint" data-act="owl">Tap the card 💳</p><p class="eyebrow">${esc(H[0])}</p><h1>${esc(S.hotel.name)}</h1><p class="sub">${esc(S.hotel.tagline)}</p><p class="say" id="say" data-act="owl">${esc(H[1])}</p></header>
@@ -395,7 +395,7 @@ function reveal(){const e=document.querySelectorAll('.rv');if(!('IntersectionObs
 function toast(m){const d=document.createElement('div');d.className='toast';d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),1800)}
 const mm=()=>{const e=$('#mm');if(e)e.innerHTML=menuBlock()};
 document.addEventListener('input',e=>{if(e.target.id==='q'){q=e.target.value;mm()}if(e.target.id==='vg'){vegOnly=e.target.checked;mm()}});
-function render(){$('#app').innerHTML=admin?adminView():guest();reveal();const p=$('#pw');if(p)p.focus()}
+function render(){$('#app').innerHTML=(admin && !isRoomLocked)?adminView():guest();reveal();const p=$('#pw');if(p)p.focus()}
 const st=m=>{const e=$('#st');if(e)e.textContent=m};
 
 async function save(){
@@ -425,9 +425,9 @@ async function act(a,t){
  else if(a==='pick'){pick(t)}
  else if(a==='go'){const d=t.dataset.t;d==='top'?scrollTo({top:0,behavior:'smooth'}):document.getElementById(d).scrollIntoView({behavior:'smooth'})}
  else if(a==='copy'){try{await navigator.clipboard.writeText(t.dataset.v);toast('Copied ✓');say('Copied to clipboard ✓');boom(t)}catch(e){t.textContent='Select & copy manually'}}
- else if(a==='login'){login=true;render()}
+ else if(a==='login'){if(isRoomLocked)return;login=true;render()}
  else if(a==='closelogin'){login=false;render()}
- else if(a==='dologin'){if(await sha($('#pw').value)===S.pw){admin=true;login=false;try{sessionStorage.setItem('se_admin','1')}catch(e){}render()}else $('#lst').textContent='Wrong password'}
+ else if(a==='dologin'){if(isRoomLocked)return;if(await sha($('#pw').value)===S.pw){admin=true;login=false;try{sessionStorage.setItem('se_admin','1')}catch(e){}render()}else $('#lst').textContent='Wrong password'}
  else if(a==='logout'){admin=false;try{sessionStorage.removeItem('se_admin')}catch(e){}render()}
  else if(a==='tab'){tab=t.dataset.t;render()}
  else if(a==='kfilter'){kitchenFilter=t.dataset.f;render()}
@@ -752,19 +752,16 @@ async function chatSend(pre){
 }
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='cin')chatSend()});
 
-let ord={open:false,view:'browse',tab:'toil',cart:{},msg:'',name:'',room:'',note:'',sent:'',sentTab:'',err:''};
-if(lockedRoom){
+let ord = { open: false, view: 'browse', tab: 'toil', cart: {}, msg: '', name: '', room: lockedRoom, note: '', sent: '', sentTab: '', err: '' };
+let fp = { open: false, cat: 0, q: '', veg: false, view: 'menu', sent: '' };
+try {
+  const g = JSON.parse(localStorage.getItem('se_guest') || '{}');
+  if (g.name) ord.name = g.name;
+  if (!isRoomLocked && g.room) ord.room = g.room;
+} catch (e) {}
+if (isRoomLocked) {
   ord.room = lockedRoom;
-  isRoomLocked = true;
-  try{ sessionStorage.setItem('locked_room_se', lockedRoom); }catch(e){}
-} else {
-  try{
-    const saved = sessionStorage.getItem('locked_room_se');
-    if(saved){ ord.room = saved; isRoomLocked = true; }
-  }catch(e){}
 }
-let fp={open:false,cat:0,q:'',veg:false,view:'menu',sent:''};
-try{const g=JSON.parse(localStorage.getItem('se_guest')||'{}');ord.name=g.name||'';ord.room=g.room||''}catch(e){}
 const num=s=>{let d=String(s||'').replace(/\D/g,'');if(d.length===10)d='91'+d;return d.length>=11?d:''};
 const dest=t=>t==='food'?S.order.food:S.order.desk;
 const qty=k=>ord.cart[k]||0,rs=v=>{const n=parseFloat(v);return isNaN(n)?0:n};
@@ -789,7 +786,7 @@ function fList(){const n=fp.q.toLowerCase(),src=fp.q?S.menu.flatMap(x=>x.items):
 
 function fBar(){const c=cnt('food'),t=tot('food');return c?`<button class="btn" data-act="freview">View order · ${c} item${c>1?'s':''}${t?' · Rs '+t:''}</button>`:''}
 
-function formHtml(tab){const f=tab==='food',p=f?'f':'o',d=dest(tab),wa=num(d.wa),sm=num(d.sms)||wa;
+function formHtml(tab){if(isRoomLocked){ord.room=lockedRoom;}const f=tab==='food',p=f?'f':'o',d=dest(tab),wa=num(d.wa),sm=num(d.sms)||wa;
  return `<div class="oform"><div class="two"><input id="${p}n" placeholder="Your name *" maxlength="60" value="${esc(ord.name)}" autocomplete="name">${isRoomLocked ? `<div style="display:flex;flex-direction:column;flex:1"><input id="${p}r" placeholder="Room no." maxlength="10" value="${esc(ord.room)}" readonly style="background:rgba(214,178,94,0.15);cursor:not-allowed;font-weight:700;border-color:var(--gold)"><small style="color:var(--gl);font-size:0.75rem;margin-top:2px;font-weight:700">🔒 Room ${esc(ord.room)} verified</small></div>` : `<input id="${p}r" placeholder="Room no. *" maxlength="10" value="${esc(ord.room)}">`}</div><input id="${p}x" placeholder="Extra note (optional)" maxlength="300" value="${esc(ord.note)}"><div class="odest">${TL[tab]}</div>${f?'':`<div class="osum" id="osum">${sumText(tab)}</div>`}<div class="oerr" id="${f?'ferr':'oerr'}">${esc(ord.err)}</div><div class="oalert" style="margin:10px 0 12px;padding:12px 14px;background:rgba(214,178,94,0.08);color:var(--gl);border:1px solid rgba(214,178,94,0.35);border-radius:2px;font-size:0.83rem;line-height:1.45;text-align:left">⚠️ <b>सूचना / Notice:</b> कृपया विचारपूर्वक ऑर्डर करा. ऑर्डर केल्यानंतर ती रद्द केली जाऊ शकत नाही आणि हॉटेलचे नुकसान टाळण्यासाठी योग्य ती कारवाई केली जाऊ शकते. / Please order responsibly. Once an order is placed, it CANNOT be cancelled and appropriate action may be taken to prevent hotel loss. Thank you!</div>${wa||sm?'':'<p class="mu" style="font-size:.9rem;margin:4px 0 8px">Reception has not set up the ordering number yet. Tap Copy order and show it at reception, or call.</p>'}<div class="osend">${wa?`<button class="btn" data-act="${p}wa">Send on WhatsApp</button>`:''}${sm?`<button class="btn g" data-act="${p}sms">Send as SMS</button>`:''}<button class="btn g" data-act="${p}copy">Copy order</button></div></div>`}
 
 function fCheck(){
@@ -823,7 +820,7 @@ function paintOrder(){const d=$('#odyn');if(d)d.innerHTML=odyn();const f=$('#ofw
 
 function afterQty(k,t){if(k[0]==='f'){if(fp.view==='checkout')return paintFood();const c=t.closest('.fctl');if(c)c.innerHTML=fCtl(k);const b=$('#fbar');if(b)b.innerHTML=fBar()}else{const sp=t.parentElement.querySelector('span');if(sp)sp.textContent=qty(k);const sm=$('#osum');if(sm)sm.textContent=sumText(ord.tab);const tb=document.querySelector('.otabs .pill.on');if(tb&&ord.tab==='toil'){const c=cnt('toil');tb.textContent='🧴 Amenities'+(c?` (${c})`:'')}const o=$('#ofw');if(o)o.innerHTML=obar()}}
 
-function validate(tab){if(ord.name.trim().length<2)return 'Please enter your name.';if(!ord.room.trim())return 'Please enter your room number.';if(tab==='msg'){if(!ord.msg.trim())return 'Please write your message.'}else if(!cnt(tab))return 'Add at least one item.';return ''}
+function validate(tab){if(isRoomLocked){ord.room=lockedRoom;}if(ord.name.trim().length<2)return 'Please enter your name.';if(!ord.room.trim())return 'Please enter your room number.';if(tab==='msg'){if(!ord.msg.trim())return 'Please write your message.'}else if(!cnt(tab))return 'Add at least one item.';return ''}
 
 function sendOrder(kind,tab){ord.err=validate(tab);const e=$(tab==='food'?'#ferr':'#oerr');if(e)e.textContent=ord.err;if(ord.err)return;
  try{localStorage.setItem('se_guest',JSON.stringify({name:ord.name.trim(),room:ord.room.trim()}))}catch(x){}
@@ -853,7 +850,7 @@ function sendOrder(kind,tab){ord.err=validate(tab);const e=$(tab==='food'?'#ferr
  const a=document.createElement('a');a.href=u;if(kind==='wa'){a.target='_blank';a.rel='noopener'}document.body.appendChild(a);a.click();a.remove();
  if(tab==='food'){fp.view='sent';fp.sent=kind;paintFood()}else{ord.sent=kind;ord.sentTab=tab;paintOrder()}boom($(tab==='food'?'#fpage':'#osheet'))}
 
-document.addEventListener('input',e=>{const i=e.target.id,v=e.target.value;if(i==='on'||i==='fn')ord.name=v;else if(i==='or'||i==='fr')ord.room=v;else if(i==='ox'||i==='fx')ord.note=v;else if(i==='omsg'){ord.msg=v;const f=$('#ofw');if(f)f.innerHTML=obar()}else if(i==='fs'){fp.q=v;const l=$('#flist');if(l)l.innerHTML=fList()}else if(i==='fv'){fp.veg=e.target.checked;const l=$('#flist');if(l)l.innerHTML=fList()}});
+document.addEventListener('input',e=>{const i=e.target.id,v=e.target.value;if(i==='on'||i==='fn')ord.name=v;else if(i==='or'||i==='fr'){if(!isRoomLocked)ord.room=v;}else if(i==='ox'||i==='fx')ord.note=v;else if(i==='omsg'){ord.msg=v;const f=$('#ofw');if(f)f.innerHTML=obar()}else if(i==='fs'){fp.q=v;const l=$('#flist');if(l)l.innerHTML=fList()}else if(i==='fv'){fp.veg=e.target.checked;const l=$('#flist');if(l)l.innerHTML=fList()}});
 
 document.addEventListener('pointermove',e=>{
   const k=$('#kc'),hr=$('#hero');if(!k||!hr)return;
