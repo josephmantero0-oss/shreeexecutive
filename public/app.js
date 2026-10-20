@@ -38,45 +38,7 @@ function getActiveGuestOrders() {
   return guestOrders.filter(isOrderActiveForGuest);
 }
 
-function trackBanner(){
-  if(admin) return '';
-  const actives = getActiveGuestOrders();
-  if(!actives.length) return '';
-  const top = actives[0];
-  const st = top.status || 'pending';
-  let badgeText = 'Pending';
-  let badgeColor = '#e67e22';
-  let sub = 'Sent to hotel staff. Waiting for confirmation...';
-  
-  const isFood = (top.type === 'restaurant:shreeexecutive' || !top.type || top.type === 'restaurant');
-  if(st === 'accepted' || st === 'in_progress' || st === 'preparing'){
-    badgeText = isFood ? 'Preparing' : 'In Progress';
-    badgeColor = '#2980b9';
-    sub = isFood ? 'Chef is preparing your fresh meal.' : 'Staff is fulfilling your request.';
-  } else if(st === 'delivered' || st === 'completed'){
-    const rem = getVanishRemainingMinutes(top);
-    badgeText = 'Delivered!';
-    badgeColor = '#27ae60';
-    sub = 'Delivered to your room! (Vanishes in ' + rem + 'm)';
-  } else if(st === 'rejected'){
-    const rem = getVanishRemainingMinutes(top);
-    badgeText = 'Declined';
-    badgeColor = '#c0392b';
-    sub = (top.reject_reason || top.rejectReason || 'Out of stock') + '. (Vanishes in ' + rem + 'm)';
-  }
-
-  return '<div class="track-banner" id="tbanner">'
-    + '<div class="tb-body" data-act="opentrack">'
-    + '<span class="tb-dot" style="background:' + badgeColor + '"></span>'
-    + '<div class="tb-info">'
-    + '<div class="tb-head"><span>🛵 #' + esc(top.id) + '</span> <span class="tb-tag" style="background:' + badgeColor + '">' + badgeText + '</span></div>'
-    + '<div class="tb-sub">' + esc(sub) + '</div>'
-    + '</div></div>'
-    + '<div class="tb-acts">'
-    + '<button class="tb-btn" data-act="opentrack">Details</button>'
-    + '<button class="tb-x" data-act="dismissbanner" data-id="' + top.id + '" aria-label="Dismiss">✕</button>'
-    + '</div></div>';
-}
+function trackBanner(){ return ''; }
 
 function trackUI(){
   if(admin) return '';
@@ -404,7 +366,7 @@ function guest(){
  ${rv?`<section class="card rv" id="review"><h2>Your feedback</h2><p style="margin-top:0">If we served you well, a Google review means a great deal to our team.</p><a class="btn" href="${esc(rv)}" target="_blank" rel="noopener">Leave a review</a></section>`:''}
  <div class="div" style="margin-top:34px"><i></i><b class="fan"></b><i></i></div><p class="foot">Thank you for choosing ${esc(S.hotel.name)}</p></div>
  <nav class="dock"><button data-act="go" data-t="top">${ic('home')}Home</button><button data-act="go" data-t="menu">${ic('menu')}Menu</button><button data-act="food">${ic('bell')}Order</button><button data-act="opentrack" id="docktrack"><span>🛵</span>Track${getActiveGuestOrders().length ? `<b class="dock-badge">${getActiveGuestOrders().length}</b>` : ''}</button><button data-act="go" data-t="wifi">${ic('wifi')}WiFi</button><button data-act="go" data-t="rules">${ic('rules')}Rules</button></nav>
- ${trackBanner()}${foodPage()}${orderUI()}${trackUI()}${chatUI()}${login?loginModal():''}`;
+ ${foodPage()}${orderUI()}${trackUI()}${chatUI()}${login?loginModal():''}`;
 }
 
 function inp(k,v,ph,cls){return `<input ${cls?`class="${cls}" `:''}data-k="${k}" value="${esc(v)}" placeholder="${ph}">`}
@@ -1144,16 +1106,34 @@ function fetchLiveOrders(){
 
     q.then(({data, error}) => {
       if(error || !data) return;
-      const prevCount = getActiveGuestOrders().length;
       guestOrders = data;
-      const nextCount = getActiveGuestOrders().length;
-      if(prevCount !== nextCount || trackSheetOpen || $('#tbanner')){
-        render();
+      const act = getActiveGuestOrders();
+
+      // Update dock badge without full re-render
+      const dBtn = document.querySelector('#docktrack');
+      if(dBtn){
+        let b = dBtn.querySelector('.dock-badge');
+        if(act.length){
+          if(!b){
+            b = document.createElement('b');
+            b.className = 'dock-badge';
+            dBtn.appendChild(b);
+          }
+          b.textContent = act.length;
+        } else if(b){
+          b.remove();
+        }
+      }
+
+      // If tracking sheet is currently open, refresh only its content every 5s
+      if(trackSheetOpen){
+        const tc = document.querySelector('#tracksheet .track-sheet-content');
+        if(tc) tc.innerHTML = renderGuestOrdersList();
       }
     }).catch(()=>{});
   }
 }
-setInterval(fetchLiveOrders, 3500);
+setInterval(fetchLiveOrders, 5000);
 
 async function boot(){
  try{
