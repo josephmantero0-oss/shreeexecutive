@@ -23,7 +23,7 @@ const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new T
 let adminTab = 'kitchen', kitchenFilter = 'active', liveOrders = [], soundEnabled = true, lastKnownOrderIds = new Set();
 
 function playChime(){
-  if(!soundEnabled)return;
+  if(!soundEnabled || !admin)return;
   try{
     const A=window.AudioContext||window.webkitAudioContext;if(!A)return;
     const c=new A(),o=c.createOscillator(),g=c.createGain();
@@ -969,7 +969,7 @@ function fetchLiveOrders(){
       }
     });
     liveOrders = data;
-    if(hasNew) playChime();
+    if(hasNew && admin && soundEnabled) playChime();
     if(admin && (tab==='kitchen'||tab==='staff')){
       render();
     }
@@ -984,6 +984,7 @@ async function boot(){
    return fail('Could not load site',(e&&e.message)||'Unknown error');
  }
  AI=true;
+ if(admin && !isRoomLocked) tab = 'kitchen';
  fetchLiveOrders();
  render();
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh()});
