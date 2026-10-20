@@ -23,7 +23,7 @@ const sha=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new T
 let adminTab = 'kitchen', kitchenFilter = 'active', liveOrders = [], soundEnabled = true, lastKnownOrderIds = new Set();
 
 function playChime(){
-  if(!soundEnabled || !admin)return;
+  if(!soundEnabled || !admin || isRoomLocked)return;
   try{
     const A=window.AudioContext||window.webkitAudioContext;if(!A)return;
     const c=new A(),o=c.createOscillator(),g=c.createGain();
@@ -481,12 +481,12 @@ async function act(a,t){
  else if(a==='delnotice'){S.notices.splice(i,1);save();render()}
  else if(a==='setpw'){const o=$('#opw').value,v=$('#npw').value;if(await sha(o)!==S.pw)return st('Current password is wrong.');if(v.length<6)return st('Use at least 6 characters.');S.pw=await sha(v);$('#opw').value='';$('#npw').value='';st('Password changed. Press Save changes to apply.')}
  else if(a==='save')save();
- else if(a==='food'){fp.open=true;fp.view='menu';paintFood();const p=$('#fpage');if(p)p.classList.add('open')}
- else if(a==='fback'){fp.open=false;const p=$('#fpage');if(p)p.classList.remove('open')}
+ else if(a==='food'){if(fp.sent){Object.keys(ord.cart).forEach(x=>{if(x[0]==='f')delete ord.cart[x]});ord.note='';fp.sent='';}fp.open=true;fp.view='menu';paintFood();const p=$('#fpage');if(p)p.classList.add('open')}
+ else if(a==='fback'){if(fp.sent){Object.keys(ord.cart).forEach(x=>{if(x[0]==='f')delete ord.cart[x]});ord.note='';fp.sent='';}fp.open=false;const p=$('#fpage');if(p)p.classList.remove('open')}
  else if(a==='fcat'){fp.cat=i;paintFood()}
  else if(a==='freview'){fp.view='checkout';paintFood()}
  else if(a==='fcheckback'){fp.view='menu';paintFood()}
- else if(a==='fnew'){fp.view='menu';paintFood()}
+ else if(a==='fnew'||a==='fclear'){Object.keys(ord.cart).forEach(x=>{if(x[0]==='f')delete ord.cart[x]});ord.note='';fp.sent='';fp.view='menu';paintFood()}
  else if(a==='fwa'){sendOrder('wa','food')}
  else if(a==='fsms'){sendOrder('sms','food')}
  else if(a==='fcopy'){sendOrder('copy','food')}
@@ -969,7 +969,7 @@ function fetchLiveOrders(){
       }
     });
     liveOrders = data;
-    if(hasNew && admin && soundEnabled) playChime();
+    if(hasNew && admin && !isRoomLocked && soundEnabled) playChime();
     if(admin && (tab==='kitchen'||tab==='staff')){
       render();
     }
