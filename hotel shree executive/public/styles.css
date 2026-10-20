@@ -610,3 +610,42 @@ label{font:500 .74rem var(--b);letter-spacing:.14em;text-transform:uppercase;col
   *{animation:none!important;transition:none!important}
   .rv{opacity:1;translate:none}
 }
+
+/* ── ROOM BADGE & LOCK ── */
+.room-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(214,178,94,0.15);color:var(--gl);padding:6px 14px;border-radius:999px;font-weight:700;font-size:.9rem;border:1.5px solid var(--gold);box-shadow:0 4px 12px rgba(0,0,0,0.5);margin-bottom:8px}
+.r-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block;animation:rPulse 1.4s infinite}
+@keyframes rPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
+.r-vtag{background:var(--gold);color:#0b0b10;font-size:.65rem;padding:2px 6px;border-radius:6px;text-transform:uppercase;font-weight:800}
+
+/* ── DASHBOARD ── */
+.dtopbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;padding:10px 14px;background:#14141e;border:1px solid rgba(214,178,94,0.4);border-radius:8px}
+.dpulse{display:inline-flex;align-items:center;gap:8px;font-size:.84rem;color:var(--gl)}
+.dpulse i{width:9px;height:9px;border-radius:50%;background:var(--gold);display:inline-block;animation:rPulse 1.2s infinite}
+.staff-alert-banner{background:rgba(214,178,94,0.12);border:1px solid rgba(214,178,94,0.4);color:var(--gl);padding:10px 14px;margin-bottom:12px;border-radius:8px;font-size:.85rem;font-weight:700}
+.filter-bar{display:flex;gap:8px;margin-bottom:14px}
+.fbtn{font-size:.82rem;padding:6px 14px;border:1px solid rgba(214,178,94,0.4);background:#101018;color:var(--iv);border-radius:8px;cursor:pointer}
+.fbtn.on{background:var(--gold);color:#0b0b10;font-weight:700}
+.ord-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.ord-card{background:#14141e;border:1px solid rgba(214,178,94,0.35);border-radius:10px;box-shadow:0 8px 20px rgba(0,0,0,0.6);padding:14px;display:flex;flex-direction:column;gap:10px}
+.ord-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px dashed rgba(214,178,94,0.3);padding-bottom:8px}
+.ord-room{font-weight:800;font-size:1.2rem;background:rgba(214,178,94,0.18);color:var(--gl);padding:2px 10px;border-radius:6px;border:1px solid rgba(214,178,94,0.3)}
+.ord-meta{text-align:right;font-size:.78rem;color:var(--mu)}
+.ord-items{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:4px}
+.ord-item{display:flex;justify-content:space-between;font-size:.92rem;border-bottom:1px dotted rgba(214,178,94,0.2);padding:3px 0}
+.ord-note{background:rgba(214,178,94,0.08);border-left:3px solid var(--gold);padding:6px 10px;font-size:.85rem;font-style:italic;border-radius:4px;color:var(--iv)}
+.ord-foot{display:flex;justify-content:space-between;align-items:center;border-top:1px dashed rgba(214,178,94,0.3);padding-top:8px}
+.ord-tot{font-size:1.2rem;font-weight:800;color:var(--gl)}
+.ord-badge{font-size:.7rem;padding:3px 8px;border-radius:6px;border:1px solid rgba(214,178,94,0.4);text-transform:uppercase;font-weight:700}
+.b-pending{background:rgba(255,210,63,0.2);color:#ffd23f;border-color:#ffd23f}
+.b-accepted{background:rgba(42,168,118,0.2);color:#2aa876;border-color:#2aa876}
+.b-ready{background:rgba(214,178,94,0.25);color:var(--gl);border-color:var(--gold)}
+.b-delivered{background:rgba(197,232,213,0.2);color:#c5e8d5;border-color:#6d8a57}
+.b-rejected{background:rgba(255,157,143,0.2);color:var(--err);text-decoration:line-through;border-color:var(--err)}
+.ord-acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.btn-act{font-size:.8rem;padding:6px 12px;border:1px solid rgba(214,178,94,0.4);border-radius:6px;cursor:pointer;background:#101018;color:var(--iv);transition:transform .1s,background .2s}
+.btn-act:hover{transform:translate(-1px,-1px)}
+.btn-accept{background:rgba(42,168,118,0.25);color:#2aa876;border-color:#2aa876}
+.btn-ready{background:rgba(214,178,94,0.25);color:var(--gl);border-color:var(--gold)}
+.btn-deliver{background:rgba(197,232,213,0.25);color:#c5e8d5;border-color:#6d8a57}
+.btn-reject{background:rgba(255,157,143,0.2);color:var(--err);border-color:var(--err)}
+.empty-box{padding:26px;text-align:center;font-weight:700;background:#14141e;border:1px dashed rgba(214,178,94,0.3);border-radius:8px;color:var(--mu)}
