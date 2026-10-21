@@ -846,9 +846,6 @@ function smartReply(q){
    return `📞 Reception Contact:\nPhone: ${S.hotel.phone || '+91 9876543210'}\nHotel: ${S.hotel.name} (${S.hotel.tagline || ''})\n\nFeel free to call or message us anytime!`;
  }
 
- 
- }
-
  const summary = [
    allCategories.length ? `• Executive Menu & Drinks (${allCategories.map(c => c.cat).join(', ')})` : '',
    S.wifi.name ? `• WiFi details` : '',
