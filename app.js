@@ -129,6 +129,7 @@ function renderGuestOrdersList(){
           + '<div class="trb-feedback" style="display:' + (showFb ? 'block' : 'none') + ';margin-top:10px">'
           + '<textarea class="trb-fb-txt" placeholder="Tell us how we can improve..." rows="2" style="width:100%;font-size:.8rem;padding:6px;border-radius:6px;border:1px solid #ddd;box-sizing:border-box">' + esc((rs && rs.text) || '') + '</textarea>'
           + '<button type="button" class="btn g" style="margin-top:6px;padding:4px 10px;font-size:.75rem" data-act="sendprivfb" data-id="' + esc(o.id) + '">Submit Feedback</button>'
+          + '<button type="button" class="btn" style="margin-top:6px;margin-left:6px;padding:4px 10px;font-size:.75rem;background:#eee;color:#333" data-act="cancelprivfb" data-id="' + esc(o.id) + '">Cancel</button>'
           + '</div>'
           + '</div>';
       })() : '')
@@ -587,6 +588,12 @@ async function act(a,t){
    const tc = document.querySelector('#tracksheet .track-sheet-content');
    if(tc) tc.innerHTML = renderGuestOrdersList();
    toast('Feedback submitted!');
+ }
+ else if(a==='cancelprivfb'){
+   const oid = t.dataset.id;
+   delete reviewBoxState[oid];
+   const tc = document.querySelector('#tracksheet .track-sheet-content');
+   if(tc) tc.innerHTML = renderGuestOrdersList();
  }
  else if(a==='opentrack'){trackSheetOpen=true;render();const s=$('#tracksheet');if(s)s.classList.add('open')}
  else if(a==='closetrack'){trackSheetOpen=false;const s=$('#tracksheet');if(s)s.classList.remove('open');render()}
@@ -1176,7 +1183,8 @@ function fetchLiveOrders(){
       if(trackSheetOpen){
         const activeEl = document.activeElement;
         const isTyping = activeEl && (activeEl.classList.contains('trb-fb-txt') || activeEl.id === 'gtrfbtxt');
-        if(!isTyping){
+        const hasFeedbackOpen = Object.values(reviewBoxState).some(s => s && s.status === 'feedback_open');
+        if(!isTyping && !hasFeedbackOpen){
           const tc = document.querySelector('#tracksheet .track-sheet-content');
           if(tc) tc.innerHTML = renderGuestOrdersList();
         }
