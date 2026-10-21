@@ -3,6 +3,124 @@ const urlParams = new URLSearchParams(window.location.search);
 const lockedRoom = (urlParams.get('room') || urlParams.get('r') || '').trim();
 const isRoomLocked = Boolean(lockedRoom);
 let S=null;
+
+let guestOrders = [], trackSheetOpen = false, dismissedOrderIds = new Set();
+function getMyStoredOrderIds() {
+  try {
+    const list = JSON.parse(localStorage.getItem('se_my_orders') || '[]');
+    return Array.isArray(list) ? list.map(x => (typeof x === 'string' ? x : x.id)).filter(Boolean) : [];
+  } catch(e) { return []; }
+}
+function addMyStoredOrderId(id) {
+  try {
+    const list = JSON.parse(localStorage.getItem('se_my_orders') || '[]');
+    const next = [{ id, time: Date.now() }, ...list.filter(x => (typeof x === 'string' ? x : x.id) !== id)].slice(0, 20);
+    localStorage.setItem('se_my_orders', JSON.stringify(next));
+  } catch(e) {}
+}
+function isOrderActiveForGuest(o) {
+  if (!o) return false;
+  if (dismissedOrderIds.has(o.id)) return false;
+  const st = o.status || 'pending';
+  if (st === 'pending' || st === 'accepted' || st === 'in_progress' || st === 'preparing' || st === 'ready') return true;
+  if (st === 'delivered' || st === 'completed' || st === 'rejected') {
+    const fin = new Date(o.updated_at || o.updatedAt || o.created_at || o.createdAt).getTime();
+    return (Date.now() - fin) < 10 * 60 * 1000; // 10 minutes auto-vanish
+  }
+  return false;
+}
+function getVanishRemainingMinutes(o) {
+  const fin = new Date(o.updated_at || o.updatedAt || o.created_at || o.createdAt).getTime();
+  const rem = Math.max(0, Math.ceil(10 - (Date.now() - fin) / (60 * 1000)));
+  return rem;
+}
+function getActiveGuestOrders() {
+  return guestOrders.filter(isOrderActiveForGuest);
+}
+
+function trackBanner(){ return ''; }
+
+function trackUI(){
+  if(admin) return '';
+  return '<div class="osheet ' + (trackSheetOpen ? 'open' : '') + '" id="tracksheet">'
+    + '<div class="oh">'
+    + '<b>🛵 Live Room Orders & Requests</b>'
+    + '<button data-act="closetrack" aria-label="Close">✕</button>'
+    + '</div>'
+    + '<div class="track-sheet-content">'
+    + renderGuestOrdersList()
+    + '</div></div>';
+}
+
+function renderGuestOrdersList(){
+  const actives = getActiveGuestOrders();
+  if(!actives.length){
+    return '<div class="empty-track">'
+      + '<h3>No Active Orders</h3>'
+      + '<p>Orders you place for food or front desk services will appear here with live updates from staff!</p>'
+      + (isRoomLocked ? '<p style="margin-top:10px;font-weight:700;color:#6d8a57">🔒 Tracking updates for Room ' + esc(lockedRoom) + '</p>' : '')
+      + '</div>';
+  }
+
+  return actives.map(o => {
+    const isFood = (o.type === 'restaurant:shreeexecutive' || !o.type || o.type === 'restaurant');
+    const st = o.status || 'pending';
+    const isRejected = (st === 'rejected');
+    const isDone = (st === 'delivered' || st === 'completed');
+    const isInProg = (st === 'accepted' || st === 'in_progress' || st === 'preparing');
+    const rem = getVanishRemainingMinutes(o);
+
+    let step1Class = 'done';
+    let step2Class = isInProg ? 'active' : (isDone ? 'done' : '');
+    let step3Class = isDone ? 'done' : '';
+    if(isRejected){
+      step2Class = 'rejected';
+      step3Class = '';
+    }
+
+    const timeStr = new Date(o.created_at || o.createdAt).toLocaleTimeString([], {hour:'numeric', minute:'2-digit'});
+
+    return '<div class="track-order-card" data-id="' + o.id + '">'
+      + '<div class="toc-head">'
+      + '<div>'
+      + '<div class="toc-title">' + (isFood ? '🍽️ Food Order' : '🛎️ Service Request') + ' #' + esc(o.id) + '</div>'
+      + '<div class="toc-meta">Room: ' + esc(o.room) + ' • Placed at ' + timeStr + '</div>'
+      + '</div>'
+      + '<span class="tb-tag" style="background:' + (isDone ? '#27ae60' : (isRejected ? '#c0392b' : (isInProg ? '#2980b9' : '#e67e22'))) + '">' + esc(st) + '</span>'
+      + '</div>'
+      + (isDone ? '<div class="toc-vanish-note">✅ <b>Delivered!</b> Enjoy your stay. (Vanishes in ' + rem + ' min' + (rem>1?'s':'') + ')</div>' : '')
+      + (isRejected ? '<div class="toc-vanish-note rej">❌ <b>Order Declined:</b> ' + esc(o.reject_reason || o.rejectReason || 'Unavailable') + '. (Vanishes in ' + rem + ' min' + (rem>1?'s':'') + ')</div>' : '')
+      + '<div class="track-steps">'
+      + '<div class="ts-step ' + step1Class + '"><div class="ts-circle">✓</div><div class="ts-label">Received</div></div>'
+      + '<div class="ts-step ' + step2Class + '"><div class="ts-circle">' + (isRejected ? '✕' : (isInProg ? '⏳' : (isDone ? '✓' : '2'))) + '</div><div class="ts-label">' + (isRejected ? 'Declined' : (isFood ? 'Cooking' : 'In Progress')) + '</div></div>'
+      + '<div class="ts-step ' + step3Class + '"><div class="ts-circle">' + (isDone ? '✓' : '3') + '</div><div class="ts-label">Delivered</div></div>'
+      + '</div>'
+      + (isFood ? (
+        '<ul class="toc-items">'
+        + (o.items || []).map(it => '<li class="toc-item"><span>' + esc(it.name) + ' × ' + it.q + '</span><b>Rs ' + ((it.price||0)*(it.q||1)) + '</b></li>').join('')
+        + '</ul>'
+        + (o.total ? '<div class="toc-total"><span>Total</span><span>Rs ' + o.total + '</span></div>' : '')
+      ) : (
+        '<div style="font-size:.85rem;margin:8px 0;font-weight:700">' + esc(o.service_title || o.serviceTitle || 'Room Service Request') + '</div>'
+      ))
+      + (o.note ? '<div class="toc-note"><b>Note:</b> ' + esc(o.note) + '</div>' : '')
+      + (isDone && S.review ? (
+        '<div class="toc-review-box" id="revbox_' + esc(o.id) + '">'
+        + '<div class="trb-title">⭐ Rate your experience</div>'
+        + '<div class="trb-sub">How was your food and room service?</div>'
+        + '<div class="trb-stars">'
+        + [1,2,3,4,5].map(s => '<button type="button" class="trb-star-btn" data-act="rateexp" data-score="' + s + '" data-id="' + esc(o.id) + '" aria-label="' + s + ' stars">★</button>').join('')
+        + '</div>'
+        + '<div class="trb-feedback" style="display:none;margin-top:10px">'
+        + '<textarea class="trb-fb-txt" placeholder="Tell us how we can improve..." rows="2" style="width:100%;font-size:.8rem;padding:6px;border-radius:6px;border:1px solid #ddd;box-sizing:border-box"></textarea>'
+        + '<button type="button" class="btn g" style="margin-top:6px;padding:4px 10px;font-size:.75rem" data-act="sendprivfb" data-id="' + esc(o.id) + '">Submit Feedback</button>'
+        + '</div>'
+        + '</div>'
+      ) : '')
+      + '</div>';
+  }).join('');
+}
+
 function normalize(){
  S.hotel=S.hotel||{name:'Hotel Shree Executive',tagline:'An Executive Stay',phone:'+91 9876543210',ai_info:'Welcome to Hotel Shree Executive. Premium executive hospitality, banquet facilities, and 24/7 room service.'};
  S.wifi=S.wifi||{name:'ShreeExecutive_Guest',pass:'welcome123'};
@@ -260,8 +378,8 @@ function guest(){
  <section class="card rv" id="rules"><h2>House rules</h2><ol>${S.rules.map(r=>`<li>${esc(r)}</li>`).join('')}</ol></section>
  ${rv?`<section class="card rv" id="review"><h2>Your feedback</h2><p style="margin-top:0">If we served you well, a Google review means a great deal to our team.</p><a class="btn" href="${esc(rv)}" target="_blank" rel="noopener">Leave a review</a></section>`:''}
  <div class="div" style="margin-top:34px"><i></i><b class="fan"></b><i></i></div><p class="foot">Thank you for choosing ${esc(S.hotel.name)}</p></div>
- <nav class="dock"><button data-act="go" data-t="top">${ic('home')}Home</button><button data-act="go" data-t="menu">${ic('menu')}Menu</button><button data-act="food">${ic('bell')}Order</button><button data-act="go" data-t="wifi">${ic('wifi')}WiFi</button><button data-act="go" data-t="rules">${ic('rules')}Rules</button></nav>
- ${foodPage()}${orderUI()}${chatUI()}${login?loginModal():''}`;
+ <nav class="dock"><button data-act="go" data-t="top">${ic('home')}Home</button><button data-act="go" data-t="menu">${ic('menu')}Menu</button><button data-act="food">${ic('bell')}Order</button><button data-act="opentrack" id="docktrack"><span>🛵</span>Track${getActiveGuestOrders().length ? `<b class="dock-badge">${getActiveGuestOrders().length}</b>` : ''}</button><button data-act="go" data-t="wifi">${ic('wifi')}WiFi</button><button data-act="go" data-t="rules">${ic('rules')}Rules</button></nav>
+ ${foodPage()}${orderUI()}${trackUI()}${chatUI()}${login?loginModal():''}`;
 }
 
 function inp(k,v,ph,cls){return `<input ${cls?`class="${cls}" `:''}data-k="${k}" value="${esc(v)}" placeholder="${ph}">`}
@@ -387,7 +505,7 @@ function adminView(){
  if(tab==='notices'){b=`<div class="card"><h2>Broadcast a notice</h2><textarea id="nt" rows="3" placeholder="Message for all guests, e.g. Breakfast served in banquet hall from 7:30 AM."></textarea><button class="btn" data-act="addnotice">Broadcast now</button></div><div class="card"><h2>Live notices</h2>${S.notices.map((n,i)=>`<div class="row"><p style="margin:0 0 6px">${esc(n.t)}</p><small class="mu">${esc(n.time)}</small> <button class="btn d" data-act="delnotice" data-i="${i}">Remove</button></div>`).join('')||'<p class="mu">No notices.</p>'}</div>`}
  if(tab==='menu'){const c=S.menu[ci];b=`<div class="card"><div class="pills">${S.menu.map((x,i)=>`<button class="pill ${i===ci?'on':''}" data-act="acat" data-i="${i}">${esc(x.cat)}</button>`).join('')}<button class="pill" data-act="addcat">+ Category</button></div>${c?`${inp(`menu.${ci}.cat`,c.cat,'Category name')}${c.items.map((it,j)=>{const p=`menu.${ci}.items.${j}.`;return `<div class="row">${inp(p+'n',it.n,'Dish name')}${inp(p+'p',it.p,'Price ₹')}${inp(p+'d',it.d,'Description')}<label><input type="checkbox" data-k="${p}v" ${it.v?'checked':''}>Veg</label><label><input type="checkbox" data-k="${p}a" ${it.a?'checked':''}>Available</label> <button class="btn d" data-act="delitem" data-j="${j}">Delete</button></div>`}).join('')}<div class="bar"><button class="btn g" data-act="additem">+ Add item</button><button class="btn d" data-act="delcat">${delArm===ci?'Tap again to delete':'Delete category'}</button></div>`:'<p class="mu">Add a category to start.</p>'}</div>`}
  if(tab==='order'){const dn=(k,t)=>`<div class="card"><h2>${t}</h2><label>WhatsApp number (with country code)</label>${inp('order.'+k+'.wa',S.order[k].wa,'919876543210')}<label>SMS number (blank = same as WhatsApp)</label>${inp('order.'+k+'.sms',S.order[k].sms,'919876543210')}</div>`;b=`<div class="card"><h2>Ordering</h2><label class="sw"><input type="checkbox" data-k="order.on" ${S.order.on?'checked':''}>Accept orders</label>${[S.order.food,S.order.desk].some(d=>num(d.wa)||num(d.sms))?'':'<p class="st">No number is set yet. Guests can pick items but can only copy the order until you add a number below.</p>'}<p class="mu" style="font-size:.9rem">Food orders and toiletries/messages are sent separately. Orders are dispatched via WhatsApp or SMS directly to your phone.</p></div>${dn('food','Kitchen (food orders)')}${dn('desk','Front desk (toiletries and messages)')}<div class="card"><h2>Toiletries</h2>${S.toil.map((x,i)=>`<div class="row">${inp('toil.'+i+'.n',x.n,'Item name')}${inp('toil.'+i+'.p',x.p,'Price Rs (optional)')}<label><input type="checkbox" data-k="toil.${i}.a" ${x.a?'checked':''}>Available</label> <button class="btn d" data-act="deltoil" data-i="${i}">Delete</button></div>`).join('')}<button class="btn g" data-act="addtoil">+ Add item</button></div>`}
- if(tab==='info'){b=`<div class="card"><h2>Details</h2><label>Hotel name</label>${inp('hotel.name',S.hotel.name,'')}<label>Tagline</label>${inp('hotel.tagline',S.hotel.tagline,'')}<label>Reception phone</label>${inp('hotel.phone',S.hotel.phone,'+91…')}<label>WiFi name</label>${inp('wifi.name',S.wifi.name,'')}<label>WiFi password</label>${inp('wifi.pass',S.wifi.pass,'')}<label>Google review link</label>${inp('review',S.review,'https://…')}<label>Extra Hotel & Local Info for Ask Joy AI</label><textarea data-k="hotel.ai_info" rows="4" placeholder="e.g. Check-in is at 12 PM. Executive banquet hall on 1st floor. 24/7 room service.">${esc(S.hotel.ai_info||'')}</textarea></div><div class="card"><h2>House rules</h2>${S.rules.map((r,i)=>`<div class="row">${inp('rules.'+i,r,'Rule')}<button class="btn d" data-act="delrule" data-i="${i}">Delete</button></div>`).join('')}<button class="btn g" data-act="addrule">+ Add rule</button></div><div class="card"><h2>Admin password</h2><input id="opw" type="password" placeholder="Current password" autocomplete="current-password"><input id="npw" type="password" placeholder="New password (min 6 chars)" autocomplete="new-password"><button class="btn g" data-act="setpw">Change password</button></div>`}
+ if(tab==='info'){b=`<div class="card"><h2>Details</h2><label>Hotel name</label>${inp('hotel.name',S.hotel.name,'')}<label>Tagline</label>${inp('hotel.tagline',S.hotel.tagline,'')}<label>Reception phone</label>${inp('hotel.phone',S.hotel.phone,'+91…')}<label>WiFi name</label>${inp('wifi.name',S.wifi.name,'')}<label>WiFi password</label>${inp('wifi.pass',S.wifi.pass,'')}<label>Google review link</label>${inp('review',S.review,'https://…')}<label>UPI ID (GPay / PhonePe / Paytm)</label>${inp('upi',S.upi||'','9623004864@superyes')}<label>UPI Payee Name</label>${inp('upiName',S.upiName||S.hotel.name,'Hotel Name')}<label>Extra Hotel & Local Info for Ask Joy AI</label><textarea data-k="hotel.ai_info" rows="4" placeholder="e.g. Check-in is at 12 PM. Executive banquet hall on 1st floor. 24/7 room service.">${esc(S.hotel.ai_info||'')}</textarea></div><div class="card"><h2>House rules</h2>${S.rules.map((r,i)=>`<div class="row">${inp('rules.'+i,r,'Rule')}<button class="btn d" data-act="delrule" data-i="${i}">Delete</button></div>`).join('')}<button class="btn g" data-act="addrule">+ Add rule</button></div><div class="card"><h2>Admin password</h2><input id="opw" type="password" placeholder="Current password" autocomplete="current-password"><input id="npw" type="password" placeholder="New password (min 6 chars)" autocomplete="new-password"><button class="btn g" data-act="setpw">Change password</button></div>`}
  return `<div class="wrap"><div class="bar"><h2 style="margin:0">Admin</h2><div><button class="btn g" data-act="logout">Exit</button> <button class="btn" data-act="save">Save changes</button></div></div><div class="st" id="st"></div><div class="pills">${[['kitchen','🍳 Kitchen ('+kActive+')'],['staff','🛎️ Front Desk ('+sActive+')'],['notices','Notices'],['menu','Menu'],['info','Info & rules'],['order','Ordering'],['qr','🔗 Room Links']].map(t=>`<button class="pill ${tab===t[0]?'on':''}" data-act="tab" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>${b}</div>`;
 }
 
@@ -426,6 +544,41 @@ async function act(a,t){
  else if(a==='go'){const d=t.dataset.t;d==='top'?scrollTo({top:0,behavior:'smooth'}):document.getElementById(d).scrollIntoView({behavior:'smooth'})}
  else if(a==='copy'){try{await navigator.clipboard.writeText(t.dataset.v);toast('Copied ✓');say('Copied to clipboard ✓');boom(t)}catch(e){t.textContent='Select & copy manually'}}
  else if(a==='login'){if(isRoomLocked)return;login=true;render()}
+ else if(a==='rateexp'){
+   const score = +(t.dataset.score || 5);
+   const oid = t.dataset.id;
+   const box = document.getElementById('revbox_' + oid);
+   if(score >= 4){
+     if(box){
+       box.innerHTML = '<div style="color:#27ae60;font-weight:700;font-size:.85rem;margin-bottom:6px">🎉 Thank you for ' + score + ' stars!</div>'
+         + '<div style="font-size:.78rem;color:#555;margin-bottom:10px">Would you take 10 seconds to share your kind review on Google Maps? It means the world to our staff!</div>'
+         + '<a class="btn" style="background:#4285f4;color:#fff;display:inline-block;padding:8px 16px;text-decoration:none" href="' + esc(S.review) + '" target="_blank" rel="noopener">⭐ Share on Google Review</a>';
+     }
+     window.open(S.review, '_blank', 'noopener');
+     toast('Opening Google Review...');
+   } else {
+     if(box){
+       const fb = box.querySelector('.trb-feedback');
+       if(fb) fb.style.display = 'block';
+       const stars = box.querySelector('.trb-stars');
+       if(stars) stars.style.opacity = '0.5';
+       const sub = box.querySelector('.trb-sub');
+       if(sub) sub.textContent = 'We are sorry to hear that. Please let us know how we can make it right:';
+     }
+   }
+ }
+ else if(a==='sendprivfb'){
+   const oid = t.dataset.id;
+   const box = document.getElementById('revbox_' + oid);
+   const txt = (box && box.querySelector('.trb-fb-txt')) ? box.querySelector('.trb-fb-txt').value.trim() : '';
+   if(box){
+     box.innerHTML = '<div style="color:#27ae60;font-weight:700;font-size:.85rem">🙏 Thank you! Your feedback has been noted directly for management.</div>';
+   }
+   toast('Feedback submitted!');
+ }
+ else if(a==='opentrack'){trackSheetOpen=true;render();const s=$('#tracksheet');if(s)s.classList.add('open')}
+ else if(a==='closetrack'){trackSheetOpen=false;const s=$('#tracksheet');if(s)s.classList.remove('open');render()}
+ else if(a==='dismissbanner'){const id=t.dataset.id;if(id)dismissedOrderIds.add(id);render()}
  else if(a==='closelogin'){login=false;render()}
  else if(a==='dologin'){if(isRoomLocked)return;if(await sha($('#pw').value)===S.pw){admin=true;login=false;try{sessionStorage.setItem('se_admin','1')}catch(e){}render()}else $('#lst').textContent='Wrong password'}
  else if(a==='logout'){admin=false;try{sessionStorage.removeItem('se_admin')}catch(e){}render()}
@@ -787,7 +940,7 @@ function fList(){const n=fp.q.toLowerCase(),src=fp.q?S.menu.flatMap(x=>x.items):
 function fBar(){const c=cnt('food'),t=tot('food');return c?`<button class="btn" data-act="freview">View order · ${c} item${c>1?'s':''}${t?' · Rs '+t:''}</button>`:''}
 
 function formHtml(tab){if(isRoomLocked){ord.room=lockedRoom;}const f=tab==='food',p=f?'f':'o',d=dest(tab),wa=num(d.wa),sm=num(d.sms)||wa;
- return `<div class="oform"><div class="two"><input id="${p}n" placeholder="Your name *" maxlength="60" value="${esc(ord.name)}" autocomplete="name">${isRoomLocked ? `<div style="display:flex;flex-direction:column;flex:1"><input id="${p}r" placeholder="Room no." maxlength="10" value="${esc(ord.room)}" readonly style="background:rgba(214,178,94,0.15);cursor:not-allowed;font-weight:700;border-color:var(--gold)"><small style="color:var(--gl);font-size:0.75rem;margin-top:2px;font-weight:700">🔒 Room ${esc(ord.room)} verified</small></div>` : `<input id="${p}r" placeholder="Room no. *" maxlength="10" value="${esc(ord.room)}">`}</div><input id="${p}x" placeholder="Extra note (optional)" maxlength="300" value="${esc(ord.note)}"><div class="odest">${TL[tab]}</div>${f?'':`<div class="osum" id="osum">${sumText(tab)}</div>`}<div class="oerr" id="${f?'ferr':'oerr'}">${esc(ord.err)}</div><div class="oalert" style="margin:10px 0 12px;padding:12px 14px;background:rgba(214,178,94,0.08);color:var(--gl);border:1px solid rgba(214,178,94,0.35);border-radius:2px;font-size:0.83rem;line-height:1.45;text-align:left">⚠️ <b>सूचना / Notice:</b> कृपया विचारपूर्वक ऑर्डर करा. ऑर्डर केल्यानंतर ती रद्द केली जाऊ शकत नाही आणि हॉटेलचे नुकसान टाळण्यासाठी योग्य ती कारवाई केली जाऊ शकते. / Please order responsibly. Once an order is placed, it CANNOT be cancelled and appropriate action may be taken to prevent hotel loss. Thank you!</div>${wa||sm?'':'<p class="mu" style="font-size:.9rem;margin:4px 0 8px">Reception has not set up the ordering number yet. Tap Copy order and show it at reception, or call.</p>'}<div class="osend">${wa?`<button class="btn" data-act="${p}wa">Send on WhatsApp</button>`:''}${sm?`<button class="btn g" data-act="${p}sms">Send as SMS</button>`:''}<button class="btn g" data-act="${p}copy">Copy order</button></div></div>`}
+ return `<div class="oform"><div class="two"><input id="${p}n" placeholder="Your name *" maxlength="60" value="${esc(ord.name)}" autocomplete="name">${isRoomLocked ? `<div style="display:flex;flex-direction:column;flex:1"><input id="${p}r" placeholder="Room no." maxlength="10" value="${esc(ord.room)}" readonly style="background:rgba(214,178,94,0.15);cursor:not-allowed;font-weight:700;border-color:var(--gold)"><small style="color:var(--gl);font-size:0.75rem;margin-top:2px;font-weight:700">🔒 Room ${esc(ord.room)} verified</small></div>` : `<input id="${p}r" placeholder="Room no. *" maxlength="10" value="${esc(ord.room)}">`}</div><input id="${p}x" placeholder="Extra note (optional)" maxlength="300" value="${esc(ord.note)}"><div class="odest">${TL[tab]}</div>${f?'':`<div class="osum" id="osum">${sumText(tab)}</div>`}<div class="oerr" id="${f?'ferr':'oerr'}">${esc(ord.err)}</div><div class="oalert" style="margin:10px 0 12px;padding:12px 14px;background:rgba(214,178,94,0.08);color:var(--gl);border:1px solid rgba(214,178,94,0.35);border-radius:2px;font-size:0.83rem;line-height:1.45;text-align:left">⚠️ <b>सूचना / Notice:</b> कृपया विचारपूर्वक ऑर्डर करा. ऑर्डर केल्यानंतर ती रद्द केली जाऊ शकत नाही आणि हॉटेलचे नुकसान टाळण्यासाठी योग्य ती कारवाई केली जाऊ शकते. / Please order responsibly. Once an order is placed, it CANNOT be cancelled and appropriate action may be taken to prevent hotel loss. Thank you!</div>${wa||sm?'':'<p class="mu" style="font-size:.9rem;margin:4px 0 8px">Reception has not set up the ordering number yet. Tap Copy order and show it at reception, or call.</p>'}<div class="osend">${wa?`<button class="btn" data-act="${p}wa">Send on WhatsApp</button>`:''}${sm?`<button class="btn g" data-act="${p}sms">Send as SMS</button>`:''}<button class="btn g" data-act="${p}copy">Copy order</button>${tab==='food'&&S.upi&&tot('food')?`<a class="btn btn-upi" style="background:#5f259f;color:#fff;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px" href="upi://pay?pa=${encodeURIComponent(S.upi)}&pn=${encodeURIComponent(S.upiName||S.hotel.name)}&am=${tot('food')}&cu=INR&tn=${encodeURIComponent('Room '+ord.room+' Food Order')}" target="_blank" rel="noopener">💳 Pay ₹${tot('food')} via UPI (GPay/PhonePe)</a><p class="mu" style="font-size:.72rem;margin:4px 0 0;text-align:center">Instant UPI payment. Show payment screenshot to delivery staff.</p>`:''}</div></div>`}
 
 function fCheck(){
  if(fp.view==='sent')return `<div class="ocnf"><h2>Almost done!</h2><p>${fp.sent==='wa'?'WhatsApp':'Your messaging app'} has opened with your food order. <b>Press Send there to place it.</b> If nothing opened, go back and tap Copy order, then show it at reception.</p><div class="osend"><button class="btn g" data-act="fcheckback">Back</button><button class="btn" data-act="fnew">New order</button></div></div>`;
@@ -842,6 +995,8 @@ function sendOrder(kind,tab){ord.err=validate(tab);const e=$(tab==='food'?'#ferr
      created_at: new Date().toISOString(),
      updated_at: new Date().toISOString()
    };
+   addMyStoredOrderId(orderId);
+   guestOrders.unshift(orderPayload);
    SB.from('orders').insert(orderPayload).then(()=>{
      if(typeof fetchLiveOrders === 'function') fetchLiveOrders();
    }).catch(e=>console.warn('Dashboard sync:', e));
@@ -959,23 +1114,71 @@ function fail(t,m){
 
 function fetchLiveOrders(){
   if(!SB)return;
-  SB.from('orders').select('*').in('type',['restaurant:shreeexecutive','hotel:shreeexecutive']).order('created_at',{ascending:false}).limit(100).then(({data,error})=>{
-    if(error||!data)return;
-    let hasNew = false;
-    data.forEach(o=>{
-      if(!lastKnownOrderIds.has(o.id)){
-        if(lastKnownOrderIds.size>0 && o.status==='pending') hasNew = true;
-        lastKnownOrderIds.add(o.id);
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  if(admin){
+    SB.from('orders').select('*').in('type',['restaurant:shreeexecutive','hotel:shreeexecutive']).gte('created_at',ninetyDaysAgo).order('created_at',{ascending:false}).limit(100).then(({data,error})=>{
+      if(error||!data)return;
+      let hasNew = false;
+      data.forEach(o=>{
+        if(!lastKnownOrderIds.has(o.id)){
+          if(lastKnownOrderIds.size>0 && o.status==='pending') hasNew = true;
+          lastKnownOrderIds.add(o.id);
+        }
+      });
+      liveOrders = data;
+      if(hasNew && admin && !isRoomLocked && soundEnabled) playChime();
+      if(admin && (tab==='kitchen'||tab==='staff')){
+        render();
       }
-    });
-    liveOrders = data;
-    if(hasNew && admin && !isRoomLocked && soundEnabled) playChime();
-    if(admin && (tab==='kitchen'||tab==='staff')){
-      render();
+    }).catch(()=>{});
+  } else {
+    // Guest Live Tracking Poll
+    const myIds = getMyStoredOrderIds();
+    let q = SB.from('orders')
+      .select('*')
+      .in('type', ['restaurant:shreeexecutive', 'hotel:shreeexecutive'])
+      .gte('created_at', ninetyDaysAgo)
+      .order('created_at', { ascending: false })
+      .limit(30);
+
+    if(isRoomLocked){
+      q = q.like('room', lockedRoom + '%');
+    } else if(myIds.length){
+      q = q.in('id', myIds);
+    } else {
+      return;
     }
-  }).catch(()=>{});
+
+    q.then(({data, error}) => {
+      if(error || !data) return;
+      guestOrders = data;
+      const act = getActiveGuestOrders();
+
+      // Update dock badge without full re-render
+      const dBtn = document.querySelector('#docktrack');
+      if(dBtn){
+        let b = dBtn.querySelector('.dock-badge');
+        if(act.length){
+          if(!b){
+            b = document.createElement('b');
+            b.className = 'dock-badge';
+            dBtn.appendChild(b);
+          }
+          b.textContent = act.length;
+        } else if(b){
+          b.remove();
+        }
+      }
+
+      // If tracking sheet is currently open, refresh only its content every 5s
+      if(trackSheetOpen){
+        const tc = document.querySelector('#tracksheet .track-sheet-content');
+        if(tc) tc.innerHTML = renderGuestOrdersList();
+      }
+    }).catch(()=>{});
+  }
 }
-setInterval(fetchLiveOrders, 3500);
+setInterval(fetchLiveOrders, 5000);
 
 async function boot(){
  try{

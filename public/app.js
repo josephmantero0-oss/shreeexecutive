@@ -104,6 +104,19 @@ function renderGuestOrdersList(){
         '<div style="font-size:.85rem;margin:8px 0;font-weight:700">' + esc(o.service_title || o.serviceTitle || 'Room Service Request') + '</div>'
       ))
       + (o.note ? '<div class="toc-note"><b>Note:</b> ' + esc(o.note) + '</div>' : '')
+      + (isDone && S.review ? (
+        '<div class="toc-review-box" id="revbox_' + esc(o.id) + '">'
+        + '<div class="trb-title">⭐ Rate your experience</div>'
+        + '<div class="trb-sub">How was your food and room service?</div>'
+        + '<div class="trb-stars">'
+        + [1,2,3,4,5].map(s => '<button type="button" class="trb-star-btn" data-act="rateexp" data-score="' + s + '" data-id="' + esc(o.id) + '" aria-label="' + s + ' stars">★</button>').join('')
+        + '</div>'
+        + '<div class="trb-feedback" style="display:none;margin-top:10px">'
+        + '<textarea class="trb-fb-txt" placeholder="Tell us how we can improve..." rows="2" style="width:100%;font-size:.8rem;padding:6px;border-radius:6px;border:1px solid #ddd;box-sizing:border-box"></textarea>'
+        + '<button type="button" class="btn g" style="margin-top:6px;padding:4px 10px;font-size:.75rem" data-act="sendprivfb" data-id="' + esc(o.id) + '">Submit Feedback</button>'
+        + '</div>'
+        + '</div>'
+      ) : '')
       + '</div>';
   }).join('');
 }
@@ -492,7 +505,7 @@ function adminView(){
  if(tab==='notices'){b=`<div class="card"><h2>Broadcast a notice</h2><textarea id="nt" rows="3" placeholder="Message for all guests, e.g. Breakfast served in banquet hall from 7:30 AM."></textarea><button class="btn" data-act="addnotice">Broadcast now</button></div><div class="card"><h2>Live notices</h2>${S.notices.map((n,i)=>`<div class="row"><p style="margin:0 0 6px">${esc(n.t)}</p><small class="mu">${esc(n.time)}</small> <button class="btn d" data-act="delnotice" data-i="${i}">Remove</button></div>`).join('')||'<p class="mu">No notices.</p>'}</div>`}
  if(tab==='menu'){const c=S.menu[ci];b=`<div class="card"><div class="pills">${S.menu.map((x,i)=>`<button class="pill ${i===ci?'on':''}" data-act="acat" data-i="${i}">${esc(x.cat)}</button>`).join('')}<button class="pill" data-act="addcat">+ Category</button></div>${c?`${inp(`menu.${ci}.cat`,c.cat,'Category name')}${c.items.map((it,j)=>{const p=`menu.${ci}.items.${j}.`;return `<div class="row">${inp(p+'n',it.n,'Dish name')}${inp(p+'p',it.p,'Price ₹')}${inp(p+'d',it.d,'Description')}<label><input type="checkbox" data-k="${p}v" ${it.v?'checked':''}>Veg</label><label><input type="checkbox" data-k="${p}a" ${it.a?'checked':''}>Available</label> <button class="btn d" data-act="delitem" data-j="${j}">Delete</button></div>`}).join('')}<div class="bar"><button class="btn g" data-act="additem">+ Add item</button><button class="btn d" data-act="delcat">${delArm===ci?'Tap again to delete':'Delete category'}</button></div>`:'<p class="mu">Add a category to start.</p>'}</div>`}
  if(tab==='order'){const dn=(k,t)=>`<div class="card"><h2>${t}</h2><label>WhatsApp number (with country code)</label>${inp('order.'+k+'.wa',S.order[k].wa,'919876543210')}<label>SMS number (blank = same as WhatsApp)</label>${inp('order.'+k+'.sms',S.order[k].sms,'919876543210')}</div>`;b=`<div class="card"><h2>Ordering</h2><label class="sw"><input type="checkbox" data-k="order.on" ${S.order.on?'checked':''}>Accept orders</label>${[S.order.food,S.order.desk].some(d=>num(d.wa)||num(d.sms))?'':'<p class="st">No number is set yet. Guests can pick items but can only copy the order until you add a number below.</p>'}<p class="mu" style="font-size:.9rem">Food orders and toiletries/messages are sent separately. Orders are dispatched via WhatsApp or SMS directly to your phone.</p></div>${dn('food','Kitchen (food orders)')}${dn('desk','Front desk (toiletries and messages)')}<div class="card"><h2>Toiletries</h2>${S.toil.map((x,i)=>`<div class="row">${inp('toil.'+i+'.n',x.n,'Item name')}${inp('toil.'+i+'.p',x.p,'Price Rs (optional)')}<label><input type="checkbox" data-k="toil.${i}.a" ${x.a?'checked':''}>Available</label> <button class="btn d" data-act="deltoil" data-i="${i}">Delete</button></div>`).join('')}<button class="btn g" data-act="addtoil">+ Add item</button></div>`}
- if(tab==='info'){b=`<div class="card"><h2>Details</h2><label>Hotel name</label>${inp('hotel.name',S.hotel.name,'')}<label>Tagline</label>${inp('hotel.tagline',S.hotel.tagline,'')}<label>Reception phone</label>${inp('hotel.phone',S.hotel.phone,'+91…')}<label>WiFi name</label>${inp('wifi.name',S.wifi.name,'')}<label>WiFi password</label>${inp('wifi.pass',S.wifi.pass,'')}<label>Google review link</label>${inp('review',S.review,'https://…')}<label>Extra Hotel & Local Info for Ask Joy AI</label><textarea data-k="hotel.ai_info" rows="4" placeholder="e.g. Check-in is at 12 PM. Executive banquet hall on 1st floor. 24/7 room service.">${esc(S.hotel.ai_info||'')}</textarea></div><div class="card"><h2>House rules</h2>${S.rules.map((r,i)=>`<div class="row">${inp('rules.'+i,r,'Rule')}<button class="btn d" data-act="delrule" data-i="${i}">Delete</button></div>`).join('')}<button class="btn g" data-act="addrule">+ Add rule</button></div><div class="card"><h2>Admin password</h2><input id="opw" type="password" placeholder="Current password" autocomplete="current-password"><input id="npw" type="password" placeholder="New password (min 6 chars)" autocomplete="new-password"><button class="btn g" data-act="setpw">Change password</button></div>`}
+ if(tab==='info'){b=`<div class="card"><h2>Details</h2><label>Hotel name</label>${inp('hotel.name',S.hotel.name,'')}<label>Tagline</label>${inp('hotel.tagline',S.hotel.tagline,'')}<label>Reception phone</label>${inp('hotel.phone',S.hotel.phone,'+91…')}<label>WiFi name</label>${inp('wifi.name',S.wifi.name,'')}<label>WiFi password</label>${inp('wifi.pass',S.wifi.pass,'')}<label>Google review link</label>${inp('review',S.review,'https://…')}<label>UPI ID (GPay / PhonePe / Paytm)</label>${inp('upi',S.upi||'','9623004864@superyes')}<label>UPI Payee Name</label>${inp('upiName',S.upiName||S.hotel.name,'Hotel Name')}<label>Extra Hotel & Local Info for Ask Joy AI</label><textarea data-k="hotel.ai_info" rows="4" placeholder="e.g. Check-in is at 12 PM. Executive banquet hall on 1st floor. 24/7 room service.">${esc(S.hotel.ai_info||'')}</textarea></div><div class="card"><h2>House rules</h2>${S.rules.map((r,i)=>`<div class="row">${inp('rules.'+i,r,'Rule')}<button class="btn d" data-act="delrule" data-i="${i}">Delete</button></div>`).join('')}<button class="btn g" data-act="addrule">+ Add rule</button></div><div class="card"><h2>Admin password</h2><input id="opw" type="password" placeholder="Current password" autocomplete="current-password"><input id="npw" type="password" placeholder="New password (min 6 chars)" autocomplete="new-password"><button class="btn g" data-act="setpw">Change password</button></div>`}
  return `<div class="wrap"><div class="bar"><h2 style="margin:0">Admin</h2><div><button class="btn g" data-act="logout">Exit</button> <button class="btn" data-act="save">Save changes</button></div></div><div class="st" id="st"></div><div class="pills">${[['kitchen','🍳 Kitchen ('+kActive+')'],['staff','🛎️ Front Desk ('+sActive+')'],['notices','Notices'],['menu','Menu'],['info','Info & rules'],['order','Ordering'],['qr','🔗 Room Links']].map(t=>`<button class="pill ${tab===t[0]?'on':''}" data-act="tab" data-t="${t[0]}">${t[1]}</button>`).join('')}</div>${b}</div>`;
 }
 
@@ -531,6 +544,38 @@ async function act(a,t){
  else if(a==='go'){const d=t.dataset.t;d==='top'?scrollTo({top:0,behavior:'smooth'}):document.getElementById(d).scrollIntoView({behavior:'smooth'})}
  else if(a==='copy'){try{await navigator.clipboard.writeText(t.dataset.v);toast('Copied ✓');say('Copied to clipboard ✓');boom(t)}catch(e){t.textContent='Select & copy manually'}}
  else if(a==='login'){if(isRoomLocked)return;login=true;render()}
+ else if(a==='rateexp'){
+   const score = +(t.dataset.score || 5);
+   const oid = t.dataset.id;
+   const box = document.getElementById('revbox_' + oid);
+   if(score >= 4){
+     if(box){
+       box.innerHTML = '<div style="color:#27ae60;font-weight:700;font-size:.85rem;margin-bottom:6px">🎉 Thank you for ' + score + ' stars!</div>'
+         + '<div style="font-size:.78rem;color:#555;margin-bottom:10px">Would you take 10 seconds to share your kind review on Google Maps? It means the world to our staff!</div>'
+         + '<a class="btn" style="background:#4285f4;color:#fff;display:inline-block;padding:8px 16px;text-decoration:none" href="' + esc(S.review) + '" target="_blank" rel="noopener">⭐ Share on Google Review</a>';
+     }
+     window.open(S.review, '_blank', 'noopener');
+     toast('Opening Google Review...');
+   } else {
+     if(box){
+       const fb = box.querySelector('.trb-feedback');
+       if(fb) fb.style.display = 'block';
+       const stars = box.querySelector('.trb-stars');
+       if(stars) stars.style.opacity = '0.5';
+       const sub = box.querySelector('.trb-sub');
+       if(sub) sub.textContent = 'We are sorry to hear that. Please let us know how we can make it right:';
+     }
+   }
+ }
+ else if(a==='sendprivfb'){
+   const oid = t.dataset.id;
+   const box = document.getElementById('revbox_' + oid);
+   const txt = (box && box.querySelector('.trb-fb-txt')) ? box.querySelector('.trb-fb-txt').value.trim() : '';
+   if(box){
+     box.innerHTML = '<div style="color:#27ae60;font-weight:700;font-size:.85rem">🙏 Thank you! Your feedback has been noted directly for management.</div>';
+   }
+   toast('Feedback submitted!');
+ }
  else if(a==='opentrack'){trackSheetOpen=true;render();const s=$('#tracksheet');if(s)s.classList.add('open')}
  else if(a==='closetrack'){trackSheetOpen=false;const s=$('#tracksheet');if(s)s.classList.remove('open');render()}
  else if(a==='dismissbanner'){const id=t.dataset.id;if(id)dismissedOrderIds.add(id);render()}
@@ -895,7 +940,7 @@ function fList(){const n=fp.q.toLowerCase(),src=fp.q?S.menu.flatMap(x=>x.items):
 function fBar(){const c=cnt('food'),t=tot('food');return c?`<button class="btn" data-act="freview">View order · ${c} item${c>1?'s':''}${t?' · Rs '+t:''}</button>`:''}
 
 function formHtml(tab){if(isRoomLocked){ord.room=lockedRoom;}const f=tab==='food',p=f?'f':'o',d=dest(tab),wa=num(d.wa),sm=num(d.sms)||wa;
- return `<div class="oform"><div class="two"><input id="${p}n" placeholder="Your name *" maxlength="60" value="${esc(ord.name)}" autocomplete="name">${isRoomLocked ? `<div style="display:flex;flex-direction:column;flex:1"><input id="${p}r" placeholder="Room no." maxlength="10" value="${esc(ord.room)}" readonly style="background:rgba(214,178,94,0.15);cursor:not-allowed;font-weight:700;border-color:var(--gold)"><small style="color:var(--gl);font-size:0.75rem;margin-top:2px;font-weight:700">🔒 Room ${esc(ord.room)} verified</small></div>` : `<input id="${p}r" placeholder="Room no. *" maxlength="10" value="${esc(ord.room)}">`}</div><input id="${p}x" placeholder="Extra note (optional)" maxlength="300" value="${esc(ord.note)}"><div class="odest">${TL[tab]}</div>${f?'':`<div class="osum" id="osum">${sumText(tab)}</div>`}<div class="oerr" id="${f?'ferr':'oerr'}">${esc(ord.err)}</div><div class="oalert" style="margin:10px 0 12px;padding:12px 14px;background:rgba(214,178,94,0.08);color:var(--gl);border:1px solid rgba(214,178,94,0.35);border-radius:2px;font-size:0.83rem;line-height:1.45;text-align:left">⚠️ <b>सूचना / Notice:</b> कृपया विचारपूर्वक ऑर्डर करा. ऑर्डर केल्यानंतर ती रद्द केली जाऊ शकत नाही आणि हॉटेलचे नुकसान टाळण्यासाठी योग्य ती कारवाई केली जाऊ शकते. / Please order responsibly. Once an order is placed, it CANNOT be cancelled and appropriate action may be taken to prevent hotel loss. Thank you!</div>${wa||sm?'':'<p class="mu" style="font-size:.9rem;margin:4px 0 8px">Reception has not set up the ordering number yet. Tap Copy order and show it at reception, or call.</p>'}<div class="osend">${wa?`<button class="btn" data-act="${p}wa">Send on WhatsApp</button>`:''}${sm?`<button class="btn g" data-act="${p}sms">Send as SMS</button>`:''}<button class="btn g" data-act="${p}copy">Copy order</button></div></div>`}
+ return `<div class="oform"><div class="two"><input id="${p}n" placeholder="Your name *" maxlength="60" value="${esc(ord.name)}" autocomplete="name">${isRoomLocked ? `<div style="display:flex;flex-direction:column;flex:1"><input id="${p}r" placeholder="Room no." maxlength="10" value="${esc(ord.room)}" readonly style="background:rgba(214,178,94,0.15);cursor:not-allowed;font-weight:700;border-color:var(--gold)"><small style="color:var(--gl);font-size:0.75rem;margin-top:2px;font-weight:700">🔒 Room ${esc(ord.room)} verified</small></div>` : `<input id="${p}r" placeholder="Room no. *" maxlength="10" value="${esc(ord.room)}">`}</div><input id="${p}x" placeholder="Extra note (optional)" maxlength="300" value="${esc(ord.note)}"><div class="odest">${TL[tab]}</div>${f?'':`<div class="osum" id="osum">${sumText(tab)}</div>`}<div class="oerr" id="${f?'ferr':'oerr'}">${esc(ord.err)}</div><div class="oalert" style="margin:10px 0 12px;padding:12px 14px;background:rgba(214,178,94,0.08);color:var(--gl);border:1px solid rgba(214,178,94,0.35);border-radius:2px;font-size:0.83rem;line-height:1.45;text-align:left">⚠️ <b>सूचना / Notice:</b> कृपया विचारपूर्वक ऑर्डर करा. ऑर्डर केल्यानंतर ती रद्द केली जाऊ शकत नाही आणि हॉटेलचे नुकसान टाळण्यासाठी योग्य ती कारवाई केली जाऊ शकते. / Please order responsibly. Once an order is placed, it CANNOT be cancelled and appropriate action may be taken to prevent hotel loss. Thank you!</div>${wa||sm?'':'<p class="mu" style="font-size:.9rem;margin:4px 0 8px">Reception has not set up the ordering number yet. Tap Copy order and show it at reception, or call.</p>'}<div class="osend">${wa?`<button class="btn" data-act="${p}wa">Send on WhatsApp</button>`:''}${sm?`<button class="btn g" data-act="${p}sms">Send as SMS</button>`:''}<button class="btn g" data-act="${p}copy">Copy order</button>${tab==='food'&&S.upi&&tot('food')?`<a class="btn btn-upi" style="background:#5f259f;color:#fff;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px" href="upi://pay?pa=${encodeURIComponent(S.upi)}&pn=${encodeURIComponent(S.upiName||S.hotel.name)}&am=${tot('food')}&cu=INR&tn=${encodeURIComponent('Room '+ord.room+' Food Order')}" target="_blank" rel="noopener">💳 Pay ₹${tot('food')} via UPI (GPay/PhonePe)</a><p class="mu" style="font-size:.72rem;margin:4px 0 0;text-align:center">Instant UPI payment. Show payment screenshot to delivery staff.</p>`:''}</div></div>`}
 
 function fCheck(){
  if(fp.view==='sent')return `<div class="ocnf"><h2>Almost done!</h2><p>${fp.sent==='wa'?'WhatsApp':'Your messaging app'} has opened with your food order. <b>Press Send there to place it.</b> If nothing opened, go back and tap Copy order, then show it at reception.</p><div class="osend"><button class="btn g" data-act="fcheckback">Back</button><button class="btn" data-act="fnew">New order</button></div></div>`;

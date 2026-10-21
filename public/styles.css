@@ -739,3 +739,12 @@ label{font:500 .74rem var(--b);letter-spacing:.14em;text-transform:uppercase;col
 .empty-track{text-align:center;padding:32px 16px;color:#8c7b6d}
 .empty-track h3{margin:0 0 6px;color:#2d241e;font-size:1.1rem}
 .empty-track p{margin:0;font-size:.85rem}
+
+/* SMART REVIEW BOOSTER & DYNAMIC UPI */
+.toc-review-box{background:#fdfcf9;border:1.5px dashed #e2d9cc;border-radius:10px;padding:12px;margin-top:12px;text-align:center}
+.trb-title{font-size:.9rem;font-weight:800;color:#2d241e;margin-bottom:2px}
+.trb-sub{font-size:.75rem;color:#7a6d62;margin-bottom:8px}
+.trb-stars{display:flex;justify-content:center;gap:6px;margin:6px 0}
+.trb-star-btn{background:none;border:none;font-size:1.6rem;color:#f39c12;cursor:pointer;padding:2px 4px;transition:transform .15s}
+.trb-star-btn:hover{transform:scale(1.25)}
+.btn-upi{background:linear-gradient(135deg, #5f259f, #7b3ebd)!important;box-shadow:0 2px 8px rgba(95,37,159,0.3)}
