@@ -4,7 +4,7 @@ const lockedRoom = (urlParams.get('room') || urlParams.get('r') || '').trim();
 const isRoomLocked = Boolean(lockedRoom);
 let S=null;
 
-let guestOrders = [], trackSheetOpen = false, dismissedOrderIds = new Set();
+let guestOrders = [], trackSheetOpen = false, dismissedOrderIds = new Set(), reviewBoxState = {};
 function getMyStoredOrderIds() {
   try {
     const list = JSON.parse(localStorage.getItem('se_my_orders') || '[]');
@@ -104,19 +104,34 @@ function renderGuestOrdersList(){
         '<div style="font-size:.85rem;margin:8px 0;font-weight:700">' + esc(o.service_title || o.serviceTitle || 'Room Service Request') + '</div>'
       ))
       + (o.note ? '<div class="toc-note"><b>Note:</b> ' + esc(o.note) + '</div>' : '')
-      + (isDone && S.review ? (
-        '<div class="toc-review-box" id="revbox_' + esc(o.id) + '">'
-        + '<div class="trb-title">⭐ Rate your experience</div>'
-        + '<div class="trb-sub">How was your food and room service?</div>'
-        + '<div class="trb-stars">'
-        + [1,2,3,4,5].map(s => '<button type="button" class="trb-star-btn" data-act="rateexp" data-score="' + s + '" data-id="' + esc(o.id) + '" aria-label="' + s + ' stars">★</button>').join('')
-        + '</div>'
-        + '<div class="trb-feedback" style="display:none;margin-top:10px">'
-        + '<textarea class="trb-fb-txt" placeholder="Tell us how we can improve..." rows="2" style="width:100%;font-size:.8rem;padding:6px;border-radius:6px;border:1px solid #ddd;box-sizing:border-box"></textarea>'
-        + '<button type="button" class="btn g" style="margin-top:6px;padding:4px 10px;font-size:.75rem" data-act="sendprivfb" data-id="' + esc(o.id) + '">Submit Feedback</button>'
-        + '</div>'
-        + '</div>'
-      ) : '')
+      + (isDone && S.review ? (() => {
+        const rs = reviewBoxState[o.id];
+        if(rs && rs.status === 'thanked'){
+          return '<div class="toc-review-box" id="revbox_' + esc(o.id) + '">'
+            + '<div style="color:#27ae60;font-weight:700;font-size:.85rem;margin-bottom:6px">🎉 Thank you for ' + rs.score + ' stars!</div>'
+            + '<div style="font-size:.78rem;color:#555;margin-bottom:10px">Would you take 10 seconds to share your kind review on Google Maps? It means the world to our staff!</div>'
+            + '<a class="btn" style="background:#4285f4;color:#fff;display:inline-block;padding:8px 16px;text-decoration:none" href="' + esc(S.review) + '" target="_blank" rel="noopener">⭐ Share on Google Review</a>'
+            + '</div>';
+        }
+        if(rs && rs.status === 'feedback_submitted'){
+          return '<div class="toc-review-box" id="revbox_' + esc(o.id) + '">'
+            + '<div style="color:#27ae60;font-weight:700;font-size:.85rem">🙏 Thank you! Your feedback has been noted directly for management.</div>'
+            + '</div>';
+        }
+        const showFb = (rs && rs.status === 'feedback_open');
+        const curScore = (rs && rs.score) || 0;
+        return '<div class="toc-review-box" id="revbox_' + esc(o.id) + '">'
+          + '<div class="trb-title">⭐ Rate your experience</div>'
+          + '<div class="trb-sub">' + (showFb ? 'We are sorry to hear that. Please let us know how we can make it right:' : 'How was your food and room service?') + '</div>'
+          + '<div class="trb-stars" style="' + (showFb ? 'opacity:0.5;' : '') + '">'
+          + [1,2,3,4,5].map(s => '<button type="button" class="trb-star-btn" data-act="rateexp" data-score="' + s + '" data-id="' + esc(o.id) + '" aria-label="' + s + ' stars">' + (s <= curScore ? '★' : '★') + '</button>').join('')
+          + '</div>'
+          + '<div class="trb-feedback" style="display:' + (showFb ? 'block' : 'none') + ';margin-top:10px">'
+          + '<textarea class="trb-fb-txt" placeholder="Tell us how we can improve..." rows="2" style="width:100%;font-size:.8rem;padding:6px;border-radius:6px;border:1px solid #ddd;box-sizing:border-box">' + esc((rs && rs.text) || '') + '</textarea>'
+          + '<button type="button" class="btn g" style="margin-top:6px;padding:4px 10px;font-size:.75rem" data-act="sendprivfb" data-id="' + esc(o.id) + '">Submit Feedback</button>'
+          + '</div>'
+          + '</div>';
+      })() : '')
       + '</div>';
   }).join('');
 }
@@ -547,33 +562,30 @@ async function act(a,t){
  else if(a==='rateexp'){
    const score = +(t.dataset.score || 5);
    const oid = t.dataset.id;
-   const box = document.getElementById('revbox_' + oid);
    if(score >= 4){
-     if(box){
-       box.innerHTML = '<div style="color:#27ae60;font-weight:700;font-size:.85rem;margin-bottom:6px">🎉 Thank you for ' + score + ' stars!</div>'
-         + '<div style="font-size:.78rem;color:#555;margin-bottom:10px">Would you take 10 seconds to share your kind review on Google Maps? It means the world to our staff!</div>'
-         + '<a class="btn" style="background:#4285f4;color:#fff;display:inline-block;padding:8px 16px;text-decoration:none" href="' + esc(S.review) + '" target="_blank" rel="noopener">⭐ Share on Google Review</a>';
-     }
+     reviewBoxState[oid] = { status: 'thanked', score: score };
      window.open(S.review, '_blank', 'noopener');
      toast('Opening Google Review...');
    } else {
-     if(box){
-       const fb = box.querySelector('.trb-feedback');
-       if(fb) fb.style.display = 'block';
-       const stars = box.querySelector('.trb-stars');
-       if(stars) stars.style.opacity = '0.5';
-       const sub = box.querySelector('.trb-sub');
-       if(sub) sub.textContent = 'We are sorry to hear that. Please let us know how we can make it right:';
-     }
+     reviewBoxState[oid] = { status: 'feedback_open', score: score, text: '' };
+   }
+   const tc = document.querySelector('#tracksheet .track-sheet-content');
+   if(tc) tc.innerHTML = renderGuestOrdersList();
+   if(score < 4){
+     setTimeout(() => {
+       const box = document.getElementById('revbox_' + oid);
+       const ta = box && box.querySelector('.trb-fb-txt');
+       if(ta) ta.focus();
+     }, 50);
    }
  }
  else if(a==='sendprivfb'){
    const oid = t.dataset.id;
    const box = document.getElementById('revbox_' + oid);
    const txt = (box && box.querySelector('.trb-fb-txt')) ? box.querySelector('.trb-fb-txt').value.trim() : '';
-   if(box){
-     box.innerHTML = '<div style="color:#27ae60;font-weight:700;font-size:.85rem">🙏 Thank you! Your feedback has been noted directly for management.</div>';
-   }
+   reviewBoxState[oid] = { status: 'feedback_submitted', text: txt };
+   const tc = document.querySelector('#tracksheet .track-sheet-content');
+   if(tc) tc.innerHTML = renderGuestOrdersList();
    toast('Feedback submitted!');
  }
  else if(a==='opentrack'){trackSheetOpen=true;render();const s=$('#tracksheet');if(s)s.classList.add('open')}
@@ -1160,9 +1172,14 @@ function fetchLiveOrders(){
       }
 
       // If tracking sheet is currently open, refresh only its content every 5s
+      // BUT if the guest is currently typing in the feedback box, do NOT wipe out their textarea!
       if(trackSheetOpen){
-        const tc = document.querySelector('#tracksheet .track-sheet-content');
-        if(tc) tc.innerHTML = renderGuestOrdersList();
+        const activeEl = document.activeElement;
+        const isTyping = activeEl && (activeEl.classList.contains('trb-fb-txt') || activeEl.id === 'gtrfbtxt');
+        if(!isTyping){
+          const tc = document.querySelector('#tracksheet .track-sheet-content');
+          if(tc) tc.innerHTML = renderGuestOrdersList();
+        }
       }
     }).catch(()=>{});
   }
@@ -1184,3 +1201,13 @@ async function boot(){
 boot();
 
 
+
+document.addEventListener('input', e => {
+  if(e.target && e.target.classList.contains('trb-fb-txt')){
+    const box = e.target.closest('.toc-review-box');
+    if(box && box.id){
+      const oid = box.id.replace('revbox_', '');
+      if(reviewBoxState[oid]) reviewBoxState[oid].text = e.target.value;
+    }
+  }
+});
