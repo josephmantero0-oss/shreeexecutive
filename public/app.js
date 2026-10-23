@@ -99,7 +99,7 @@ function renderGuestOrdersList(){
         '<ul class="toc-items">'
         + (o.items || []).map(it => '<li class="toc-item"><span>' + esc(it.name) + ' × ' + it.q + '</span><b>Rs ' + ((it.price||0)*(it.q||1)) + '</b></li>').join('')
         + '</ul>'
-        + (o.total ? '<div class="toc-total"><span>Total</span><span>Rs ' + o.total + '</span></div>' : '')
+        + (o.total ? '<div class="toc-total"><span style="color:#14110F!important;font-weight:800">Total</span><span style="color:#14110F!important;font-weight:800">Rs ' + o.total + '</span></div>' : '')
       ) : (
         '<div style="font-size:.85rem;margin:8px 0;font-weight:700">' + esc(o.service_title || o.serviceTitle || 'Room Service Request') + '</div>'
       ))

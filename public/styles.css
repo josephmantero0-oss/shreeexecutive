@@ -748,3 +748,124 @@ label{font:500 .74rem var(--b);letter-spacing:.14em;text-transform:uppercase;col
 .trb-star-btn{background:none;border:none;font-size:1.6rem;color:#f39c12;cursor:pointer;padding:2px 4px;transition:transform .15s}
 .trb-star-btn:hover{transform:scale(1.25)}
 .btn-upi{background:linear-gradient(135deg, #5f259f, #7b3ebd)!important;box-shadow:0 2px 8px rgba(95,37,159,0.3)}
+
+
+/* HIGH CONTRAST DARK TEXT FOR ORDER TRACKING */
+.track-order-card {
+  background: #ffffff !important;
+  color: #14110F !important;
+  border: 1.5px solid #d5c8b8 !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08) !important;
+}
+.track-order-card * {
+  color-scheme: light;
+}
+.toc-head {
+  border-bottom: 1.5px solid #ede5d8 !important;
+}
+.toc-title {
+  color: #14110F !important;
+  font-weight: 800 !important;
+  font-size: 1rem !important;
+}
+.toc-meta {
+  color: #52473f !important;
+  font-weight: 600 !important;
+  font-size: 0.78rem !important;
+}
+.toc-items {
+  list-style: none !important;
+  margin: 10px 0 !important;
+  padding: 0 !important;
+  border-bottom: 1px dashed #d5c8b8 !important;
+}
+.toc-items li, .toc-item {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 6px 0 !important;
+  font-size: 0.92rem !important;
+  color: #14110F !important;
+  font-weight: 600 !important;
+  border-bottom: 1px dashed #f0eae1 !important;
+}
+.toc-items li:last-child, .toc-item:last-child {
+  border-bottom: none !important;
+}
+.toc-items li span, .toc-item span {
+  color: #14110F !important;
+  font-weight: 600 !important;
+}
+.toc-items li b, .toc-item b {
+  color: #14110F !important;
+  font-weight: 800 !important;
+}
+.toc-total {
+  display: flex !important;
+  justify-content: space-between !important;
+  font-weight: 800 !important;
+  font-size: 1rem !important;
+  margin-top: 8px !important;
+  padding-top: 8px !important;
+  border-top: 2px solid #14110F !important;
+  color: #14110F !important;
+}
+.toc-total span, .toc-total b {
+  color: #14110F !important;
+  font-weight: 800 !important;
+}
+.ts-label {
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  color: #555555 !important;
+  margin-top: 4px !important;
+}
+.ts-step.done .ts-label {
+  color: #1e7e34 !important;
+  font-weight: 800 !important;
+}
+.ts-step.active .ts-label {
+  color: #b33927 !important;
+  font-weight: 800 !important;
+}
+.ts-step.rejected .ts-label {
+  color: #c0392b !important;
+  font-weight: 800 !important;
+}
+.toc-review-box {
+  background: #fdfaf4 !important;
+  border: 1.5px dashed #c4b5a3 !important;
+  border-radius: 12px !important;
+  padding: 14px !important;
+  margin-top: 14px !important;
+  text-align: center !important;
+  color: #14110F !important;
+}
+.trb-title {
+  font-size: 0.95rem !important;
+  font-weight: 800 !important;
+  color: #14110F !important;
+  margin-bottom: 4px !important;
+}
+.trb-sub {
+  font-size: 0.78rem !important;
+  color: #555555 !important;
+  margin-bottom: 8px !important;
+}
+.toc-note {
+  background: #fff8e1 !important;
+  border-left: 3px solid #f39c12 !important;
+  color: #5d4037 !important;
+  font-weight: 600 !important;
+  font-size: 0.8rem !important;
+  padding: 8px 10px !important;
+  border-radius: 4px !important;
+  margin: 8px 0 !important;
+}
+.empty-track h3 {
+  color: #14110F !important;
+  font-weight: 800 !important;
+}
+.empty-track p {
+  color: #555555 !important;
+}
