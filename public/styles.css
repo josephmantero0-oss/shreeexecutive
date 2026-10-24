@@ -869,3 +869,20 @@ label{font:500 .74rem var(--b);letter-spacing:.14em;text-transform:uppercase;col
 .empty-track p {
   color: #555555 !important;
 }
+
+/* Dark High Contrast Header for Track Sheet */
+#tracksheet .oh {
+  background: #ffffff !important;
+  border-bottom: 1.5px solid #ede5d8 !important;
+  color: #14110F !important;
+}
+#tracksheet .oh b {
+  color: #14110F !important;
+  font-weight: 800 !important;
+}
+#tracksheet .oh button {
+  color: #14110F !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+  font-size: 1.4rem !important;
+}

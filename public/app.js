@@ -43,9 +43,9 @@ function trackBanner(){ return ''; }
 function trackUI(){
   if(admin) return '';
   return '<div class="osheet ' + (trackSheetOpen ? 'open' : '') + '" id="tracksheet">'
-    + '<div class="oh">'
-    + '<b>🛵 Live Room Orders & Requests</b>'
-    + '<button data-act="closetrack" aria-label="Close">✕</button>'
+    + '<div class="oh" style="background:#ffffff !important;border-bottom:1.5px solid #ede5d8 !important;color:#14110F !important">'
+    + '<b style="color:#14110F !important;font-weight:800 !important;font-size:1.05rem">🛎️ Live Room Orders & Requests</b>'
+    + '<button data-act="closetrack" aria-label="Close" style="color:#14110F !important;font-weight:800 !important;font-size:1.4rem !important;opacity:1 !important;cursor:pointer">✕</button>'
     + '</div>'
     + '<div class="track-sheet-content">'
     + renderGuestOrdersList()
@@ -395,7 +395,7 @@ function guest(){
  <section class="card rv" id="rules"><h2>House rules</h2><ol>${S.rules.map(r=>`<li>${esc(r)}</li>`).join('')}</ol></section>
  ${rv?`<section class="card rv" id="review"><h2>Your feedback</h2><p style="margin-top:0">If we served you well, a Google review means a great deal to our team.</p><a class="btn" href="${esc(rv)}" target="_blank" rel="noopener">Leave a review</a></section>`:''}
  <div class="div" style="margin-top:34px"><i></i><b class="fan"></b><i></i></div><p class="foot">Thank you for choosing ${esc(S.hotel.name)}</p></div>
- <nav class="dock"><button data-act="go" data-t="top">${ic('home')}Home</button><button data-act="go" data-t="menu">${ic('menu')}Menu</button><button data-act="food">${ic('bell')}Order</button><button data-act="opentrack" id="docktrack"><span>🛵</span>Track${getActiveGuestOrders().length ? `<b class="dock-badge">${getActiveGuestOrders().length}</b>` : ''}</button><button data-act="go" data-t="wifi">${ic('wifi')}WiFi</button><button data-act="go" data-t="rules">${ic('rules')}Rules</button></nav>
+ <nav class="dock"><button data-act="go" data-t="top">${ic('home')}Home</button><button data-act="go" data-t="menu">${ic('menu')}Menu</button><button data-act="food">${ic('bell')}Order</button><button data-act="opentrack" id="docktrack"><span>🛎️</span>Track${getActiveGuestOrders().length ? `<b class="dock-badge">${getActiveGuestOrders().length}</b>` : ''}</button><button data-act="go" data-t="wifi">${ic('wifi')}WiFi</button><button data-act="go" data-t="rules">${ic('rules')}Rules</button></nav>
  ${foodPage()}${orderUI()}${trackUI()}${chatUI()}${login?loginModal():''}`;
 }
 
@@ -1201,7 +1201,7 @@ function fetchLiveOrders(){
     }).catch(()=>{});
   }
 }
-setInterval(fetchLiveOrders, admin && !isRoomLocked ? 5000 : 60000);
+setInterval(fetchLiveOrders, 15000); // 15s polling for all views
 
 async function boot(){
  try{
